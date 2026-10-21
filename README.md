@@ -30,7 +30,7 @@ Backlink Sentinel is a **free, open-source GitHub Action** that watches your bac
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         - uses: saaslisty/backlink-sentinel@v1
+         - uses: saaslisty/backlink-sentinel@v1.0.0
            with:
              links-file: links.txt
    ```
