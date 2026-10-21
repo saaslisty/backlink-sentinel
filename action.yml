@@ -1,0 +1,64 @@
+name: "Backlink Sentinel"
+description: "Check your backlink portfolio for link rot — alive, redirected, or dead. Free, no API keys, no signup."
+author: "saaslisty"
+branding:
+  icon: "link"
+  color: "yellow"
+
+inputs:
+  links-file:
+    description: "Path to a text file with one backlink URL per line (blank lines and # comments ignored). An optional label can follow a comma."
+    required: false
+    default: "links.txt"
+  timeout:
+    description: "Seconds to wait per request."
+    required: false
+    default: "15"
+  workers:
+    description: "How many links to check in parallel."
+    required: false
+    default: "10"
+  report-path:
+    description: "Where to write the Markdown report."
+    required: false
+    default: "backlink-report.md"
+  fail-on-dead:
+    description: "Fail the workflow run if any dead/error links are found (so you get notified)."
+    required: false
+    default: "true"
+
+outputs:
+  dead-count:
+    description: "Number of dead or errored links found."
+    value: ${{ steps.check.outputs.dead-count }}
+  report-path:
+    description: "Path of the generated Markdown report."
+    value: ${{ steps.check.outputs.report-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check backlinks
+      id: check
+      shell: bash
+      run: |
+        python3 "${{ github.action_path }}/check.py" \
+          "${{ inputs.links-file }}" \
+          --output "${{ inputs.report-path }}" \
+          --json "$(dirname "${{ inputs.report-path }}")/backlink-report.json" \
+          --timeout "${{ inputs.timeout }}" \
+          --workers "${{ inputs.workers }}" || CHECK_EXIT=$?
+        CHECK_EXIT=${CHECK_EXIT:-0}
+        DEAD=$(python3 -c "import json; d=json.load(open('$(dirname "${{ inputs.report-path }}")/backlink-report.json')); print(sum(1 for r in d if r['status'] in ('dead','error')))")
+        echo "dead-count=$DEAD" >> "$GITHUB_OUTPUT"
+        echo "report-path=${{ inputs.report-path }}" >> "$GITHUB_OUTPUT"
+        {
+          echo "### 🔗 Backlink Sentinel"
+          echo ""
+          cat "${{ inputs.report-path }}"
+        } >> "$GITHUB_STEP_SUMMARY"
+        if [ "${{ inputs.fail-on-dead }}" = "true" ] && [ "$DEAD" -gt 0 ]; then
+          echo "::warning::$DEAD dead or errored backlinks found — see the report."
+          exit 1
+        fi
+        exit 0

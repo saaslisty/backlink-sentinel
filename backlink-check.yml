@@ -1,0 +1,25 @@
+name: Backlink check
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # every Monday at 09:00 UTC
+  workflow_dispatch:       # manual "Run workflow" button
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./   # this repo is the action (use saaslisty/backlink-sentinel@v1 after publishing)
+        with:
+          links-file: links.txt
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backlink-report
+          path: |
+            backlink-report.md
+            backlink-report.json
